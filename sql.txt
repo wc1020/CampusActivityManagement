@@ -1,0 +1,306 @@
+create database ActivityManager
+
+drop table StudentIdentified
+drop table Student
+drop table FailReason
+drop table Activity
+drop table Organization
+drop table Administration
+drop table Place
+
+
+--学生总表
+create table Student 
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	ID char(18) check (len(ID) = 18) unique,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10)
+)
+
+insert into Student
+values	('7020820297', '330206199910204616', '王晨', '男', '计算机科学与技术', '206'),
+		('7020820300', '322206201010104616', '钟振洋', '男', '计算机科学与技术', '206'),
+		('7020820312', '311206201010304616', '徐铃风', '男', '计算机科学与技术', '206'),
+		('7020000000', '123456789123456789', '测试账号', '女', '测试学科', '测试班级')
+
+--认证学生表
+create table StudentIdentified 
+(
+	studentID char(10) check (len(studentID) = 10) primary key foreign key references student,
+	studentPassword varchar(30) check(len(studentPassword) >= 6),
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	credit int default 0,
+	signedActivity varchar(500),
+	likedActivity varchar(500)
+)
+
+insert into StudentIdentified
+values ('7020000000', '123456', '测试账号', '女', '计算机科学与技术', '206', '13123885710', 0, '', '')
+
+--组织表
+create table Organization
+(
+	organizationID char(13) check (len(organizationID) = 13) primary key,
+	organizationName varchar(20) unique,
+	organizationPassword varchar(30) check(len(organizationPassword) >= 6)
+)
+
+insert into Organization
+values	('org2022121201', '青年志愿者协会', 'qzx123456789'),
+		('org0000000000', '测试账号', '123456')
+
+--学校管理员表
+create table Administration
+(
+	adminID char(10) check (len(adminID) = 10) primary key,
+	adminPassword varchar(30) check (len(adminPassword) >= 6)
+)
+
+insert into Administration
+values	('ndky000001', 'aBc123456789.'),
+		('ndky000000', '123456')
+
+--场地表
+create table Place
+(
+	placeID int identity(1, 1) primary key,
+	placeName varchar(20) unique,
+	volume int not null,
+	startDate date,
+	endDate date
+)
+
+insert into Place (placeName, volume, startDate, endDate)
+values	('明德楼203', 1000, '2022-9-1', '2022-12-17'),
+		('明德楼204', 600, '2022-9-1', '2022-12-17'),
+		('明德楼205', 900, '2022-9-1', '2022-12-17'),
+		('求实楼206', 800, '2022-9-1', '2022-12-17'),
+		('求实楼207', 800, '2022-9-1', '2022-12-17'),
+		('求实楼208', 800, '2022-9-1', '2022-12-17'),
+		('理工信息楼C213', 600, '2022-9-1', '2022-12-17'),
+		('理工信息楼D403', 600, '2022-9-1', '2022-12-17'),
+		('操场', 2000, '2022-9-1', '2022-12-17'),
+		('足球场', 800, '2022-9-1', '2022-12-17')
+
+
+--报名信息表，每场活动申请通过后自动创建一张
+/*
+create table Enrolled活动ID
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+*/
+
+--活动表
+create table Activity
+(
+	activityID char(10) check(len(activityID) = 10) primary key,	--命名规则为时间+序号，如2022121901，每次保存活动时生成主码
+	activityName varchar(30),
+	activityIntro varchar(400),
+	activityPlaceID int references Place(placeID),
+	activityOrgID char(13) references Organization(organizationID),
+	availableCredit int default 1 check(availableCredit between 1 and 8),
+	maxSigned int,
+	signed int default 0 check(signed >= 0),
+	activityState int default 1 check(activityState between 1 and 11),	--未提交1，待审核2，未通过3，审核过期4，待报名5，报名中6，待开始7，活动中8，已结束9，已上报10，已完成11
+	signStartDate date,
+	signEndDate date,
+	holdDate date,
+	holdStart int check(holdStart between 0 and 24),
+	holdEnd int check(holdEnd between 0 and 24),
+	submitTime datetime,
+	constraint checkSigned check(signed <= maxSigned), 
+	constraint checkSignDate check(signStartDate < signEndDate), 
+	constraint checkHoldDate check(holdDate > signEndDate),
+	constraint checkHoldTime check(holdStart < holdEnd)
+)
+-- 以目前时间为准，每个状态的活动各一个
+insert into Activity
+values	('2022123001', 'ICPC', '国际大学生程序设计竞赛（英文全称：International Collegiate Programming Contest，简称ICPC）是由美国计算机协会（ACM）主办的年度竞赛，旨在展示大学生创新能力、团队精神和在压力下编写程序、分析和解决问题能力。', 
+			2, 'org0000000000', 8, 1000, 0, 1, '2023-1-1', '2023-02-06', '2023-04-01', 13, 18, ''),
+		
+		('2022121301', '线下党史答题活动', '一个在线下举办的党史答题活动，5人一组，以抢答形式进行。“学党史、悟思想、办实事、开新局”——庆祝建党100周年党史学习教育“学史达人”有奖答题活动。', 
+			1, 'org0000000000', 2, 200, 0, 2, '2023-1-5', '2023-1-8', '2023-1-10', 14, 16, '2022-12-23 14:23:25'),
+
+		('2022121302', '传智杯', '为贯彻落实习主席在十九大报告中关于“推动互联网、大数据、人工智能和实体经济深度融合”以及“善于运用互联网技术和信息化手段开展工作”等讲话精神，推动各高等院校计算机教育教学改革与创新。由全国高等院校计算机基础教育研究会主办的2022第五届“传智杯”大赛正式开启报名！', 
+			1, 'org0000000000', 6, 50, 0, 3, '2023-03-01', '2023-03-10', '2023-04-01', 13, 18, '2022-12-21 13:00:00'),
+
+		('2022121303', '小情书', '倥偬数载，绽放出多少烟花：年少的凌云壮志化为遗憾和风沙，终要擦干血泪拥抱生活与梦想；幼时耀眼的星辰投向了祖国一隅，将要默默无闻地点亮明天的微光', 
+			9, 'org0000000000', 2, 1000, 0, 4, '2022-12-26', '2022-12-28', '2022-12-31', 13, 19, '2022-12-15 13:12:31'),
+
+		('2022121304', '全国爱眼日', '2021年3月，为提高近视防控等儿童青少年视力健康工作管理决策水平，促进儿童青少年视力健康事业科学发展，国家卫健委决定成立国家儿童青少年视力健康管理专家咨询委员会。', 
+			8, 'org0000000000', 2, 500, 0, 5, '2023-01-01', '2023-01-10', '2023-02-08', 10, 12, '2022-12-28 16:20:00'),
+
+		('2022121305', '江西省信息技术知识大赛', '江西省信息技术知识赛由江西省教育厅主办，原名电脑知识赛，2014年改名为江西省信息技术知识赛，目前已成为全省信息技术知识规模最大的学科竞赛。', 
+			4, 'org0000000000', 5, 200, 88, 6, '2022-12-29', '2023-03-01', '2023-04-06', 10, 12, '2022-12-15 18:13:23'),
+
+		('2022121306', '数学建模竞赛', '全国大学生数学建模竞赛（简称“国赛”）是中国工业与应用数学学会主办的面向全国大学生的群众性科技活动，旨在激励学生学习数学的积极性，提高学生建立数学模型和运用计算机技术解决实际问题的综合能力。', 
+			2, 'org0000000000', 5, 1000, 800, 7, '2022-12-21', '2022-12-29', '2023-03-01', 12, 18, '2022-12-19 19:23:00'),
+
+		('2022121307', '写作大赛', '作文大赛归属于语文活动，面向中小学生征稿，包括小学、初中、高中生，一般分为公开征稿和现场竞赛。通过比赛，可以让孩子们增强写作热情，提升写作能力，塑造自信人生。', 
+			3, 'org0000000000', 3, 500, 500, 8, '2022-12-21', '2022-12-29', '2022-12-30', 12, 18, '2022-12-19 19:29:56'),
+
+		('2022120101', '英语阅读大赛', '“外研社·国才杯”全国英语阅读大赛是由外语教学与研究出版社、教育部高等学校大学外语教学指导委员会、教育部高等学校英语专业教学指导分委员会和中国外语与教育研究中心联合主办。', 
+			6, 'org0000000000', 5, 30, 30, 9, '2022-12-14', '2022-12-22', '2022-12-29', 12, 14, '2022-12-19 19:23:00'),
+
+		('2022120102', '英语演讲大赛', '“外研社·国才杯”全国英语阅读大赛是由外语教学与研究出版社、教育部高等学校大学外语教学指导委员会、教育部高等学校英语专业教学指导分委员会和中国外语与教育研究中心联合主办。', 
+			8, 'org0000000000', 7, 20, 20, 10, '2022-12-14', '2022-12-22', '2022-12-29', 10, 12, '2022-12-19 19:23:00'),
+
+		('2022120103', '英语翻译大赛', '“外研社·国才杯”全国英语阅读大赛是由外语教学与研究出版社、教育部高等学校大学外语教学指导委员会、教育部高等学校英语专业教学指导分委员会和中国外语与教育研究中心联合主办。', 
+			3, 'org0000000000', 5, 10, 10, 11, '2022-12-14', '2022-12-22', '2022-12-30', 10, 12, '2022-12-19 19:23:00'),
+
+		('2022120201', '青志协的活动1', '2021年3月，为提高近视防控等儿童青少年视力健康工作管理决策水平，促进儿童青少年视力健康事业科学发展，国家卫健委决定成立国家儿童青少年视力健康管理专家咨询委员会。', 
+			5, 'org2022121201', 2, 500, 0, 5, '2023-01-02', '2023-01-06', '2023-05-08', 10, 12, '2022-12-28 16:20:00'),
+
+		('2022120202', '青志协的活动2', '江西省信息技术知识赛由江西省教育厅主办，原名电脑知识赛，2014年改名为江西省信息技术知识赛，目前已成为全省信息技术知识规模最大的学科竞赛。', 
+			2, 'org2022121201', 4, 100, 87, 6, '2022-12-29', '2023-01-28', '2023-03-06', 10, 12, '2022-12-15 18:13:23'),
+
+		('2022120203', '青志协的活动3', '2021年3月，为提高近视防控等儿童青少年视力健康工作管理决策水平，促进儿童青少年视力健康事业科学发展，国家卫健委决定成立国家儿童青少年视力健康管理专家咨询委员会。', 
+			1, 'org2022121201', 2, 500, 0, 5, '2023-01-06', '2023-01-12', '2023-06-08', 10, 12, '2022-12-28 16:20:00'),
+
+		('2022120204', '青志协的活动4', '江西省信息技术知识赛由江西省教育厅主办，原名电脑知识赛，2014年改名为江西省信息技术知识赛，目前已成为全省信息技术知识规模最大的学科竞赛。', 
+			3, 'org2022121201', 1, 400, 23, 6, '2022-12-29', '2023-02-01', '2023-06-06', 10, 12, '2022-12-15 18:13:23')
+
+
+		
+create table FailReason
+(
+	activityID char(10) check(len(activityID) = 10) primary key references Activity,
+	reason varchar(50)
+)
+insert into FailReason
+values ('2022121302', '学分不够多')
+
+create table Enrolled2022121304
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022121305
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022121306
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022121307
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022120101
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022120102
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022120103
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022120201
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022120202
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022120203
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
+
+create table Enrolled2022120204
+(
+	studentID char(10) check (len(studentID) = 10) primary key,
+	studentName varchar(22) not null,
+	gender char(2) check (gender in ('男', '女')),
+	major varchar(26),
+	class varchar(10),
+	phone char(11) check (len(phone) = 11) unique,
+	checked int default 0 check(checked = 0 or checked = 1)
+)
